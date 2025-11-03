@@ -1,0 +1,6 @@
+@Passly_HostAddress = http://localhost:5007
+
+GET {{Passly_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

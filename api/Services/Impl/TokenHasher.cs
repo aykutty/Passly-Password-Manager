@@ -1,0 +1,24 @@
+using System.Security.Cryptography;
+using System.Text;
+
+namespace Passly.Services.Impl;
+
+public class TokenHasher : ITokenHasher
+{
+    public string HashToken(string token)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(token);
+        var hash = sha256.ComputeHash(bytes);
+        return Convert.ToBase64String(hash);
+    }
+
+    public bool VerifyToken(string token, string storedHash)
+    {
+        var computedHash = HashToken(token);
+        return CryptographicOperations.FixedTimeEquals(
+            Convert.FromBase64String(computedHash),
+            Convert.FromBase64String(storedHash)
+        );
+    }
+}
