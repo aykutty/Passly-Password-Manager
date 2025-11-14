@@ -56,6 +56,7 @@ const finalBody = {
 };
 
 pm.request.body.raw = JSON.stringify(finalBody);
+```
 
 ### 3. For GET /vault (Post-response script)
 
@@ -76,3 +77,4 @@ const key = CryptoJS.PBKDF2(masterPassword, salt, {
 const decrypted = CryptoJS.AES.decrypt(response.encryptedPayload, key);
 const decryptedString = decrypted.toString(CryptoJS.enc.Utf8);
 const payload = JSON.parse(decryptedString);
+```
