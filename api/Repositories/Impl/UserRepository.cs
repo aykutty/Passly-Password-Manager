@@ -1,4 +1,3 @@
-
 using Microsoft.EntityFrameworkCore;
 using Passly.Domain;
 using Passly.Entities;
@@ -14,14 +13,16 @@ public class UserRepository : IUserRepository
         _dbContext = dbContext;
     }
 
-    public Task<User> GetUserByEmailAsync(string email, CancellationToken ct)
+    public async Task<User?> GetUserByEmailAsync(string email, CancellationToken ct)
     {
-        throw new NotImplementedException();
+        return await _dbContext.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == email, ct);
     }
 
-    public Task AddUserAsync(User user)
+    public async Task AddUserAsync(User user)
     {
-        throw new NotImplementedException();
+        await _dbContext.Users.AddAsync(user);
+        await _dbContext.SaveChangesAsync();
     }
 
     public async Task<bool> IsExistsByEmailAsync(String email, CancellationToken ct)
@@ -29,13 +30,25 @@ public class UserRepository : IUserRepository
         return await _dbContext.Users.AnyAsync(x => x.Email == email);
     }
 
-    public Task<User> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
+    public async Task<User?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        return await _dbContext.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, ct);
     }
 
-    public Task UpdateAsync(User user, CancellationToken ct = default)
+    public async Task UpdateAsync(User user, CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        _dbContext.Users.Update(user);
+        await _dbContext.SaveChangesAsync(ct);
+    }
+    
+    public async Task DeleteAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _dbContext.Users.FindAsync([userId], ct);
+        if (user is null)
+            return;
+
+        _dbContext.Users.Remove(user);
+        await _dbContext.SaveChangesAsync(ct);
     }
 }

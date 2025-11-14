@@ -18,8 +18,9 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly JwtOptions _jwtOptions;
     private readonly PasswordHashingOptions _hashingOptions;
-
-    public AuthService(IUserRepository userRepository,
+    private readonly IUserService _userService;
+    public AuthService(
+        IUserRepository userRepository,
         IPasswordService passwordService,
         IJwtService jwtService,
         IRefreshTokenService refreshTokens,
@@ -27,7 +28,8 @@ public class AuthService : IAuthService
         IRefreshTokenRepository refreshTokenRepository,
         ILogger<AuthService> logger,
         IOptions<JwtOptions> jwtOptions,
-        IOptions<PasswordHashingOptions> hashingOptions)
+        IOptions<PasswordHashingOptions> hashingOptions,
+        IUserService userService)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
@@ -38,6 +40,7 @@ public class AuthService : IAuthService
         _logger = logger;
         _jwtOptions = jwtOptions.Value;
         _hashingOptions = hashingOptions.Value;
+        _userService = userService;
     }
     public async Task RegisterAsync(string email, string password, CancellationToken ct = default)
     {
@@ -91,7 +94,11 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Invalid credentials.");
         }
 
-        return IssueTokensAsync(user);
+        user.LastLoginAt = DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+        
+        return await IssueTokensAsync(user);
 
     }
 
@@ -101,19 +108,14 @@ public class AuthService : IAuthService
         await _otpService.GenerateOtpAsync(user.Email, OtpPurpose.EmailVerification, ct);
 
     }
-
-    public async Task<bool> VerifyEmailAsync(Guid userId, string otp, CancellationToken ct = default)
+    
+    public async Task VerifyEmailAsync(Guid userId, string otp, CancellationToken ct = default)
     {
         var user = await RequireUser(userId, ct);
 
-        var isVerified = await _otpService.VerifyOtpAsync(user.Email,otp, OtpPurpose.EmailVerification,ct);
+        var ok = await _otpService.VerifyOtpAsync(user.Email, otp, OtpPurpose.EmailVerification, ct);
+        if (!ok) throw new UnauthorizedAccessException("Invalid OTP.");
 
-        if (!isVerified)
-        {
-            _logger.LogWarning("Email verification OTP failed for user {UserId}", user.Id);
-            return false;
-        }
-        
         if (!user.EmailVerified)
         {
             user.EmailVerified = true;
@@ -121,14 +123,12 @@ public class AuthService : IAuthService
             await _userRepository.UpdateAsync(user, ct);
             _logger.LogInformation("User {UserId} email marked as verified", user.Id);
         }
-
-        return true;
     }
+    
 
     public async Task RequestPasswordResetAsync(string email, CancellationToken ct = default)
     {
-        email = NormalizeEmail(email);
-        var user = await _userRepository.GetUserByEmailAsync(email, ct);
+        var user = await _userService.GetByEmailAsync(email, ct);
         
         if (user is null)
         {
@@ -142,9 +142,7 @@ public class AuthService : IAuthService
     public async Task ResetPasswordAsync(string email, string otp, string newPassword, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        email = NormalizeEmail(email);
-
-        var user = await _userRepository.GetUserByEmailAsync(email, ct);
+        var user = await _userService.GetByEmailAsync(email, ct);
         
         if (user is null)
         {
@@ -179,28 +177,18 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> RefreshAsync(string refreshToken, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var valid = await _refreshTokenService.ValidateRefreshTokenAsync(refreshToken, ct);
-        
-        if (valid is null)
-        {
-            _logger.LogWarning("Invalid or expired refresh token during refresh attempt.");
-            throw new UnauthorizedAccessException("Invalid or expired refresh token.");
-        }
-        
+
+        var valid = await _refreshTokenService.ValidateRefreshTokenAsync(refreshToken, ct)
+                    ?? throw new UnauthorizedAccessException("Invalid or expired refresh token.");
+
         var user = await _userRepository.GetUserByIdAsync(valid.UserId, ct)
                    ?? throw new UnauthorizedAccessException("Account no longer exists.");
-        
-        var newPlainRefresh = await _refreshTokenService.RotateRefreshTokenAsync(valid, ct);
-        var accessToken = _jwtService.GenerateAccessToken(user);
 
-        _logger.LogInformation("Rotated refresh token and issued new access token for user {UserId}", user.Id);
+        await _refreshTokenService.RotateRefreshTokenAsync(valid, ct);
         
-        return new AuthResponse
-        {
-            AccessToken = accessToken,
-            AccessTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpiryMinutes)
-        };
+        return await IssueTokensAsync(user);
     }
+
 
     public async Task LogoutAsync(string refreshToken, CancellationToken ct = default)
     {
@@ -221,14 +209,16 @@ public class AuthService : IAuthService
         => await _userRepository.GetUserByIdAsync(userId, ct)
            ?? throw new InvalidOperationException("User not found.");
     
-    private AuthResponse IssueTokensAsync(User user)
+    private async Task<AuthResponse> IssueTokensAsync(User user)
     {
         var accessToken = _jwtService.GenerateAccessToken(user);
+        var refreshToken = await _refreshTokenService.GenerateRefreshTokenAsync(user);
 
         return new AuthResponse
         {
             AccessToken = accessToken,
             AccessTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpiryMinutes),
+            RefreshToken = refreshToken
         };
     }
 

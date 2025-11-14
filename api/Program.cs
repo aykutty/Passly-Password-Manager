@@ -83,12 +83,17 @@ builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 
 builder.Services.AddScoped<IPasswordService, PasswordService>();
+builder.Services.AddScoped<IPasswordGeneratorService, PasswordGeneratorService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<ITokenHasher, TokenHasher>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ITokenHasher, TokenHasher>();
-builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IVaultRepository, VaultRepository>();
+builder.Services.AddScoped<IVaultService, VaultService>();
 
-
+builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IOtpEmailService, OtpEmailService>();
 builder.Services.AddHostedService<OtpCleanupService>();
 
 builder.Services.AddCors(options =>

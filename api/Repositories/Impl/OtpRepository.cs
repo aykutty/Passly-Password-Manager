@@ -15,7 +15,7 @@ public class OtpRepository : IOtpRepository
         ct.ThrowIfCancellationRequested();
         
         await _dbContext.Otps.AddAsync(otp, ct);
-        await _dbContext.SaveChangesAsync();
+        await _dbContext.SaveChangesAsync(ct);
     }
 
     public async Task UpdateAsync(Otp otp, CancellationToken ct = default)
@@ -28,7 +28,9 @@ public class OtpRepository : IOtpRepository
     
     public async Task<List<Otp>> GetExpiredOtpsAsync(CancellationToken ct = default)
     {
-        throw new NotImplementedException();
+        return await _dbContext.Otps
+            .Where(o => o.Expiration <= DateTime.UtcNow)
+            .ToListAsync(ct);
     }
 
     public async Task<Otp?> GetLatestValidOtpAsync(string email, OtpPurpose purpose, CancellationToken ct = default)

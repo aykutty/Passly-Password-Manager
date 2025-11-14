@@ -12,13 +12,4 @@ public class TokenHasher : ITokenHasher
         var hash = sha256.ComputeHash(bytes);
         return Convert.ToBase64String(hash);
     }
-
-    public bool VerifyToken(string token, string storedHash)
-    {
-        var computedHash = HashToken(token);
-        return CryptographicOperations.FixedTimeEquals(
-            Convert.FromBase64String(computedHash),
-            Convert.FromBase64String(storedHash)
-        );
-    }
 }

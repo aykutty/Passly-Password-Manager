@@ -30,7 +30,7 @@ public class RefreshTokenService : IRefreshTokenService
         if (existingToken is not null)
         {
             existingToken.RevokedAt = DateTime.UtcNow;
-            await _refreshTokenRepo.UpdateAsync(existingToken, ct);
+            await _refreshTokenRepo.UpdateAsync(existingToken);
 
             _logger.LogInformation("Revoked existing refresh token for user {UserId}", user.Id);
         }
@@ -47,7 +47,7 @@ public class RefreshTokenService : IRefreshTokenService
             RevokedAt = null,
             ReplacedByTokenHash = null,
         };
-        await _refreshTokenRepo.AddAsync(refreshToken, ct);
+        await _refreshTokenRepo.AddAsync(refreshToken);
         _logger.LogInformation("Refresh token created for user {UserId}", user.Id);
         
         return token;
@@ -95,8 +95,8 @@ public class RefreshTokenService : IRefreshTokenService
         oldToken.RevokedAt = DateTime.UtcNow;
         oldToken.ReplacedByTokenHash = newTokenHash;
  
-        await _refreshTokenRepo.UpdateAsync(oldToken, ct);
-        await _refreshTokenRepo.AddAsync(newToken, ct);
+        await _refreshTokenRepo.UpdateAsync(oldToken);
+        await _refreshTokenRepo.AddAsync(newToken);
 
         _logger.LogInformation("Rotated refresh token for user {UserId}", oldToken.UserId);
 
@@ -106,7 +106,7 @@ public class RefreshTokenService : IRefreshTokenService
     public async Task RevokeRefreshTokenAsync(RefreshToken token, CancellationToken ct = default)
     {
         token.RevokedAt = DateTime.UtcNow;
-        await _refreshTokenRepo.UpdateAsync(token, ct);
+        await _refreshTokenRepo.UpdateAsync(token);
         _logger.LogInformation("Revoked refresh token for user {UserId}", token.UserId);
     }
     

@@ -10,4 +10,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<Otp> Otps { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<VaultItem> VaultItems { get; set; }
+    
 }

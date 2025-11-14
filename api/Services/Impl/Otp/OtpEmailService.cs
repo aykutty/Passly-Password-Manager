@@ -10,18 +10,28 @@ public class OtpEmailService : IOtpEmailService
 {
     private readonly ILogger<OtpEmailService> _logger;
     private readonly SmtpOptions _smtpOptions;
-    private readonly SmtpClient _smtpClient;
 
-    public OtpEmailService(ILogger<OtpEmailService> logger, SmtpClient smtpClient, IOptions<SmtpOptions> smtpOptions)
+    public OtpEmailService(ILogger<OtpEmailService> logger, IOptions<SmtpOptions> smtpOptions)
     {
         _logger = logger;
         _smtpOptions = smtpOptions.Value;
-        _smtpClient = smtpClient;
     }
 
-    public async Task SendEmailOtpAsync(string toEmail, string otpCode, OtpPurpose otpPurpose, int? expiryMinutes,
+    public async Task SendEmailOtpAsync(
+        string toEmail,
+        string otpCode,
+        OtpPurpose otpPurpose,
+        int? expiryMinutes,
         CancellationToken ct = default)
     {
+        using var client = new SmtpClient(_smtpOptions.Server, _smtpOptions.Port)
+        {
+            Credentials = new NetworkCredential(_smtpOptions.Username, _smtpOptions.Password),
+            EnableSsl = true,
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            UseDefaultCredentials = false
+        };
+
         using var mail = new MailMessage
         {
             From = new MailAddress(_smtpOptions.FromAddress, _smtpOptions.DisplayName),
@@ -37,8 +47,8 @@ public class OtpEmailService : IOtpEmailService
         };
 
         mail.To.Add(toEmail);
-        
-        await _smtpClient.SendMailAsync(mail,ct);
+
+        await client.SendMailAsync(mail, ct);
         _logger.LogInformation("OTP email sent to {Email} for purpose {Purpose}", toEmail, otpPurpose);
     }
 }
