@@ -17,6 +17,8 @@ Pre request scripts encrypt the vault fields before sending them, and post respo
 
 ### 2. For POST/PUT vault (Pre-request script)
 
+```javascript
+
 let reqBody = pm.request.body.raw;
 let bodyObj = JSON.parse(reqBody);
 
@@ -56,6 +58,8 @@ const finalBody = {
 pm.request.body.raw = JSON.stringify(finalBody);
 
 ### 3. For GET /vault (Post-response script)
+
+```javascript
 
 const CryptoJS = require('crypto-js');
 
